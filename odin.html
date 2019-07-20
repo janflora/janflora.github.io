@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Odins spil</title>
+        <style>
+            * { padding: 0; margin: 0; }
+            canvas { background: #eee; display: block; margin: 0 auto; }
+        </style>
+    </head>
+    <body style="margin-top: 100px;">
+        <center>
+            <canvas id="myCanvas" width="480" height="320" style="background-color: rgba(255,255,255,0.6);background-blend-mode: lighten; background-size: 100% 100%; backgroud-repeat: no-repeat;"></canvas>
+            <button style="padding:5px;margin-top: 10px; display:none;" id="try_again">Start</button>
+        </center>
+        <script>
+            var canvas = document.getElementById("myCanvas");
+            var restartButton = document.getElementById("try_again");
+            var ctx = canvas.getContext("2d");
+            var canvasWidth = 600;
+            var canvasHeight = 320;
+            var level = 1;
+            var score = 0;
+            var lives = 3;
+            var ufos = [];
+            var ufoColumnCount = 10;
+            var ufoRowCount = 3;
+            var ufoOffsetTop = 20;
+            var ufoOffsetLeft = 60;
+            var deltaOffset = 1;
+            var ufoPadding = 10;
+            var ufoWidth = (canvasWidth-2*ufoOffsetLeft-(ufoColumnCount-1)*ufoPadding)/ufoColumnCount;
+            var fighterWidth = 40;
+            var fighterX = canvasWidth/2-fighterWidth/2;
+            var fighterY = canvasHeight-fighterWidth;
+            var misileHeight = 20;
+            var rightPressed = false;
+            var leftPressed = false;
+            var images = {
+                "misile": false,
+                "fighter": false,
+                "ufo": false
+            };
+            var misiles = [];
+            var lasers = [];
+            
+
+            setCanvasSize(canvasWidth, canvasHeight);
+
+            showStartPage();
+
+            document.addEventListener("keydown", keyDownHandler, false);
+            document.addEventListener("keyup", keyUpHandler, false);
+            document.addEventListener("mousemove", mouseMoveHandler, false);
+            document.addEventListener("touchmove", touchMoveHandler, false);
+            document.addEventListener("click", shootHandler, false);
+
+            restartButton.addEventListener("click", generateGame);
+
+            function generateGame()
+            {
+                restartButton.style.display = "none";
+                level = 1;
+                lives = 3;
+                score = 0;
+                deltaOffset = 1;
+                generateUfos();
+
+                draw();
+            }
+
+            function generateUfos()
+            {
+                ufoOffsetTop = 20;
+                ufoOffsetLeft = 60;
+                deltaOffset = 1;
+
+                for(c=0; c<ufoColumnCount; c++) {
+                    ufos[c] = [];
+                    for(r=0; r<ufoRowCount; r++) {
+                        ufos[c][r] = { x: 0, y: 0, hitCount: 1 };
+                    }
+                }
+            }
+
+            function drawScore()
+            {
+                ctx.textAlign="left";
+                ctx.font = "16px Arial";
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillText("Score: "+score, 8, 20);
+            }
+
+            function drawLives()
+            {
+                ctx.textAlign="right";
+                ctx.font = "16px Arial";
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillText("Lives: "+lives, canvasWidth-8, 20);
+            }
+
+            function drawLevel()
+            {
+                ctx.textAlign="center";
+                ctx.font = "16px Arial";
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillText("Level: "+level, canvasWidth/2, 20);
+            }
+
+            function drawUfo(x, y)
+            {
+                if (!images['ufo']) {
+                    images['ufo'] = new Image();
+                    images['ufo'].onload = function() {
+                        ctx.drawImage(images['ufo'], x, y, ufoWidth, ufoWidth);
+                    }
+                    images['ufo'].src = "http://backgroundcheckall.com/wp-content/uploads/2017/12/ufo-transparent-background.gif";
+                } else {
+                    ctx.drawImage(images['ufo'], x, y, ufoWidth, ufoWidth);
+                }
+            }
+
+            function drawFighter(x, y)
+            {
+                if (!images['fighter']) {
+                    images['fighter'] = new Image();
+                    images['fighter'].onload = function() {
+                        ctx.drawImage(images['fighter'], x, y, fighterWidth, fighterWidth);
+                    }
+                    images['fighter'].src = "https://vignette.wikia.nocookie.net/aircraft/images/d/db/Clip-art-military-f-15-jet-top.gif";
+                } else {
+                    ctx.drawImage(images['fighter'], x, y, fighterWidth, fighterWidth);
+                }
+            }
+
+            function drawMisile(x, y)
+            {
+                if (!images['misile']) {
+                    images['misile'] = new Image();
+                    images['misile'].onload = function() {
+                        ctx.drawImage(images['misile'], x, y, misileHeight, misileHeight);
+                    }
+                    images['misile'].src = "http://pngimg.com/uploads/rockets/rockets_PNG13264.png";
+                } else {
+                    ctx.drawImage(images['misile'], x, y, misileHeight, misileHeight);
+                }
+            }
+
+            function drawLaser(x, y)
+            {
+                if (!images['laser']) {
+                    images['laser'] = new Image();
+                    images['laser'].onload = function() {
+                        ctx.drawImage(images['laser'], x, y, misileHeight, misileHeight);
+                    }
+                    images['laser'].src = "https://donaldcarling.files.wordpress.com/2016/03/mega-laser-1.png";
+                } else {
+                    ctx.drawImage(images['laser'], x, y, misileHeight, misileHeight);
+                }
+            }
+
+            function drawUfos()
+            {
+                for (c=0; c<ufoColumnCount; c++) {
+                    for (r=0; r<ufoRowCount; r++) {
+                        if (ufos[c][r].hitCount <= 0) {
+                            continue;
+                        }
+
+                        var ufoX = (c*(ufoWidth+ufoPadding))+ufoOffsetLeft;
+                        var ufoY = (r*(ufoWidth+ufoPadding))+ufoOffsetTop;
+                        ufos[c][r].x = Math.round(ufoX);
+                        ufos[c][r].y = Math.round(ufoY);
+                        drawUfo(ufoX, ufoY);
+                    }
+                }
+            }
+
+            function drawMisiles()
+            {
+                for (i = 0; i < misiles.length; i++) {
+                    misiles[i].y -=5;
+                    if (misiles[i].y > 0) {
+                        drawMisile(misiles[i].x, misiles[i].y);
+                    } else {
+                        misiles.splice(i, 1);
+                    }
+                }
+            }
+
+            function drawLasers()
+            {
+                for (i = 0; i < lasers.length; i++) {
+                    lasers[i].y +=5;
+                    if (lasers[i].y <= canvasHeight) {
+                        drawLaser(lasers[i].x, lasers[i].y);
+                    } else {
+                        lasers.splice(i, 1);
+                    }
+                }
+
+                // Fire laser
+                var r1 = Math.floor(Math.random() * 100);
+                var r2 = Math.floor(Math.random() * 100);
+
+                // Shoot
+                if (r1 == r2) {
+                    shootLaser();
+                }
+            }
+
+            function collisionDetect()
+            {
+                var fBox = {
+                    left: fighterX,
+                    right: fighterX + fighterWidth,
+                    top: fighterY,
+                    bottom: fighterY + fighterWidth
+                };
+
+                for (c=0; c<ufoColumnCount; c++) {
+                    for (r=0; r<ufoRowCount; r++) {
+                        if (ufos[c][r].hitCount <= 0) {
+                            continue;
+                        }
+
+                        var uBox = {
+                            left: ufos[c][r].x,
+                            right: ufos[c][r].x + ufoWidth,
+                            top: ufos[c][r].y,
+                            bottom: ufos[c][r].y + ufoWidth
+                        };
+
+
+                        // Check if a misile hit the UFO
+                        for (i = 0; i < misiles.length; i++) {
+                            var mBox = {
+                                left: misiles[i].x,
+                                right: misiles[i].x + 5,
+                                top: misiles[i].y,
+                                bottom: misiles[i].y + misileHeight
+                            };
+
+                            if (intersectRect(mBox, uBox)) {
+                                // Decrease hit count
+                                ufos[c][r].hitCount--;
+                                // Remove misile
+                                misiles.splice(i, 1);
+                                // Increase score
+                                score++;
+
+                                if (isLevelDone()) {
+                                    level++;
+                                    generateUfos();
+                                    misiles = [];
+                                    lasers = [];
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Check if the fighter collided with the UFO
+                        if (intersectRect(uBox, fBox)) {
+                            lives--;
+                            // Decrease hit count
+                            ufos[c][r].hitCount--;
+                        }
+
+                        // Check if the UFO collided with the bottom of the screen
+                        if (uBox.bottom >= canvasHeight) {
+                            lives--;
+                        }
+                    }
+                }
+
+                // Check if a laser hit the fighter
+                for (i = 0; i < lasers.length; i++) {
+                    var lBox = {
+                        left: lasers[i].x,
+                        right: lasers[i].x + 5,
+                        top: lasers[i].y,
+                        bottom: lasers[i].y + misileHeight
+                    };
+
+                    if (intersectRect(lBox, fBox)) {
+                        // Lose a life
+                        lives--;
+                        lasers.splice(i, 1);
+                    }
+                }
+            }
+
+            function isLevelDone()
+            {
+                for (c=0; c<ufoColumnCount; c++) {
+                    for (r=0; r<ufoRowCount; r++) {
+                        if (ufos[c][r].hitCount > 0) {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            function getVisibleUfos()
+            {
+                // Find visible UFOs
+                var visibleUfos = [];
+                for (c=0; c<ufoColumnCount; c++) {
+                    for (r=0; r<ufoRowCount; r++) {
+                        if (ufos[c][r].hitCount > 0) {
+                            visibleUfos.push(ufos[c][r]);
+                        }
+                    }
+                }
+
+                return visibleUfos;
+            }
+
+            function draw()
+            {
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                drawScore();
+                drawLives();
+                drawLevel();
+                drawUfos();
+                drawFighter(fighterX, fighterY);
+                drawMisiles();
+                drawLasers();
+                collisionDetect();
+
+                // Move the UFOs
+                ufoOffsetLeft += deltaOffset*level;
+                if (ufoOffsetLeft > 110) {
+                    deltaOffset = -1;
+                    ufoOffsetTop += 3;
+                }
+                if (ufoOffsetLeft < 10) {
+                    deltaOffset = 1;
+                    ufoOffsetTop += 3;
+                }
+
+                // Move the fighter
+                if (rightPressed && fighterX < canvasWidth-fighterWidth) {
+                    fighterX += 7;
+                } else if(leftPressed && fighterX > 0) {
+                    fighterX -= 7;
+                }
+
+                // Check if we are dead
+                if (lives <= 0) {
+                    endGame("GAME OVER");
+                    return;
+                }
+
+                requestAnimationFrame(draw);
+            }
+
+            function endGame(text)
+            {
+                ctx.font = "30px Arial";
+                ctx.textAlign="center";
+                ctx.fillStyle = "#0095DD";
+                ctx.fillText(text, canvasWidth/2, canvasHeight/2+15);
+
+                // Save highscore
+                if (score > localStorage.getItem("highscore")) { 
+                    localStorage.setItem("highscore", score);
+                }
+
+                setTimeout(showStartPage, 2000);
+            }
+
+            function keyDownHandler(e)
+            {
+                if (e.keyCode == 39) {
+                    rightPressed = true;
+                } else if(e.keyCode == 37) {
+                    leftPressed = true;
+                } 
+            }
+
+            function keyUpHandler(e)
+            {
+                if (e.keyCode == 39) {
+                    rightPressed = false;
+                } else if (e.keyCode == 37) {
+                    leftPressed = false;
+                } else if (e.keyCode == 32) {
+                    // Shoot
+                    shootMisile();
+                }
+            }
+
+            function mouseMoveHandler(e)
+            {
+                var relativeX = e.clientX - canvas.offsetLeft;
+                if(relativeX > 0 && relativeX < canvasWidth) {
+                    fighterX = relativeX - fighterWidth/2;
+                }
+            }
+
+            function touchMoveHandler(e)
+            {
+                var touchX = e.changedTouches[0].pageX;
+                var relativeX = touchX - canvas.offsetLeft;
+                if(relativeX > 0 && relativeX < canvasWidth) {
+                    fighterX = relativeX - fighterWidth/2;
+                }
+                e.preventDefault();
+            }
+
+            function shootHandler(e)
+            {
+                // Shoot
+                shootMisile();
+                e.preventDefault();
+            }
+
+            function shootLaser()
+            {
+                var visibleUfos = getVisibleUfos();
+
+                // Pick UFO to fire the shot
+                var i = Math.floor(Math.random() * visibleUfos.length);
+
+                // Shoot
+                lasers.push({x: visibleUfos[i].x+ufoWidth/2, y: visibleUfos[i].y+ufoWidth/2});
+            }
+
+            function shootMisile()
+            {
+                var x = fighterX;
+                if (Math.floor(Math.random() * 1000) >= 500) {
+                    x += 20;
+                }
+                misiles.push({x: x, y: canvasHeight-fighterWidth});
+            }
+
+            function intersectRect(r1, r2)
+            {
+                return !(r2.left > r1.right || 
+                         r2.right < r1.left || 
+                         r2.top > r1.bottom ||
+                         r2.bottom < r1.top);
+            }
+
+            function setCanvasSize(width, height)
+            {
+                ctx.canvas.width = width;
+                ctx.canvas.height = height;
+            }
+
+            function setBackground(imgUrl)
+            {
+                document.getElementById("myCanvas").style.backgroundImage = "url('"+imgUrl+"')";
+            }
+
+            function showStartPage()
+            {
+                setBackground("https://i.kinja-img.com/gawker-media/image/upload/s--uEDqL1wg--/c_scale,fl_progressive,q_80,w_800/nxgmvin0tnkdduosftb3.jpg");
+
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                
+                ctx.font = "30px Arial";
+                ctx.textAlign="center";
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillText("Odins spil", canvasWidth/2, canvasHeight/2-30);
+
+                ctx.font = "20px Arial";
+                ctx.textAlign="center";
+                ctx.fillText("Highscore: "+localStorage.getItem("highscore"), canvasWidth/2, canvasHeight/2+20);
+                restartButton.style.display = "block";
+            }
+
+        </script>
+    </body>
+</html>
