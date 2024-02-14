@@ -191,7 +191,7 @@
             function drawLasers()
             {
                 for (i = 0; i < lasers.length; i++) {
-                    lasers[i].y +=5;
+                    lasers[i].y += 5 + level;
                     if (lasers[i].y <= canvasHeight) {
                         drawLaser(lasers[i].x, lasers[i].y);
                     } else {
